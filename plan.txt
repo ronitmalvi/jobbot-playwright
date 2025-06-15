@@ -1,0 +1,13 @@
+🧾 Resume (PDF)
+   ↓
+🧠 Extracted Text (via PyPDF2)
+   ↓
+🌐 Web Page (Selenium)
+   ↓
+🔍 For each input:
+   [label, placeholder, surrounding text]
+   ↓
+🤖 OpenAI API prompt:
+   "Given this label + resume, what value should be filled?"
+   ↓
+⌨️ Fill input field
