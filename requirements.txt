@@ -1,6 +1,4 @@
 airtop
-PyPDF2>=3.0.1
-requests>=2.31.0
-python-dotenv>=1.0.0
-beautifulsoup4>=4.12.3
-rich>=13.7.1
+groq
+python-dotenv
+PyPDF2

@@ -1,34 +1,57 @@
 from resume_parser import parse_resume
-from linkedin_workflow import login_to_linkedin
-from job_applicator import fill_easy_apply
-from config import ROLE, MAX_APPLICATIONS
+from linkedin_auth import login_to_linkedin
+from job_search import get_job_cards
+from gpt_relevance_checker import is_relevant
+from job_applicator import apply_to_current_job
+from logger import log_job
 import time
 
-def main():
-    resume_text = parse_resume("resume.pdf")
-    page = login_to_linkedin()
-    page.goto("https://www.linkedin.com/jobs")
-    search_input = page.find("input[aria-label='Search by title, skill, or company']")
-    search_input.fill(ROLE)
-    search_input.press("Enter")
-    page.wait_for("ul.jobs-search__results-list li")
+MAX_APPLICATIONS = 10
+ROLE = "Software Engineer Easy Apply"
 
-    applied = 0
-    job_cards = page.find_all("ul.jobs-search__results-list li")
-    for job in job_cards:
-        job.click()
-        time.sleep(2)
-        btn = page.find(".jobs-apply-button")
-        if btn and "Easy Apply" in btn.text:
-            btn.click()
-            time.sleep(2)
-            should_continue = True
-            while should_continue:
-                should_continue = fill_easy_apply(page, resume_text)
-            applied += 1
-            print(f"\u2705 Applied to job #%d" % applied)
-            if applied >= MAX_APPLICATIONS:
-                break
+print("🚀 Starting LinkedIn Job Application Bot with Airtop AI")
+print("📄 Parsing resume...")
+resume_text = parse_resume("resume.pdf")
 
-if __name__ == "__main__":
-    main()
+print("🔐 Logging into LinkedIn...")
+session_info = login_to_linkedin("dewa.ai2050@gmail.com", "Dewa@AI2050")
+
+# Extract session components
+airtop_client = session_info['client']
+session_id = session_info['session_id']
+window_id = session_info['window_id']
+
+print("🔍 Navigating to LinkedIn Jobs...")
+# Navigate to LinkedIn Jobs page
+jobs_window = airtop_client.windows.create(
+    session_id=session_id,
+    url="https://www.linkedin.com/jobs"
+)
+
+print("⏳ Waiting for page to load...")
+time.sleep(5)
+
+print("📝 Searching for jobs...")
+print(f"🎯 Role: {ROLE}")
+print(f"📊 Max applications: {MAX_APPLICATIONS}")
+
+print("⚠️  IMPORTANT: This version requires manual interaction with the Airtop browser.")
+print("   1. Go to your Airtop dashboard: https://portal.airtop.ai/")
+print("   2. Find your active session and open it")
+print("   3. Manually search for jobs and apply")
+print("   4. The automation will be enhanced in the next version")
+
+# Keep session alive for manual interaction
+print("🕐 Keeping session alive for 30 minutes...")
+for i in range(30):  # 30 minutes
+    print(f"⏳ Session active... {30-i} minutes remaining")
+    time.sleep(60)  # Wait 1 minute
+
+# Close session
+try:
+    airtop_client.sessions.terminate(session_id)
+    print("✅ Session terminated successfully")
+except:
+    print("⚠️ Session may have already expired")
+
+print("🎯 Job application session completed!")
