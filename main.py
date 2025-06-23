@@ -8,9 +8,10 @@ def main():
     resume_text = parse_resume("resume.pdf")
     page = login_to_linkedin()
     page.goto("https://www.linkedin.com/jobs")
-    page.wait_for_selector("input[aria-label='Search by title, skill, or company']").fill(ROLE)
-    page.find("input[aria-label='Search by title, skill, or company']").press("Enter")
-    page.wait_for_selector("ul.jobs-search__results-list li")
+    search_input = page.find("input[aria-label='Search by title, skill, or company']")
+    search_input.fill(ROLE)
+    search_input.press("Enter")
+    page.wait_for("ul.jobs-search__results-list li")
 
     applied = 0
     job_cards = page.find_all("ul.jobs-search__results-list li")
