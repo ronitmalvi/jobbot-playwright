@@ -1,2 +1,1 @@
-dfsl;ffl;kjfds;lfdsfdfjdsfdofdfdfjdkfhkdkfjldhvldkjvh
-sggsgfsgsfg
+print("Hello, world")
