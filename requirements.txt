@@ -1,4 +1,4 @@
-PyPDF2
-openai
+airtop
+groq
 python-dotenv
-playwright
+PyPDF2

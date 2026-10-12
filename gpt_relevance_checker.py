@@ -35,19 +35,3 @@ Is this job relevant to the user? Answer 'yes' or 'no' and explain.
     )
     reply = response.choices[0].message.content.strip().lower()
     return reply.startswith("yes")
-
-# Example Usage:
-# if __name__ == "__main__":
-#     sample_resume = """
-#     John Doe
-#     Software Engineer with 5 years experience in Python, JavaScript, and React.
-#     """
-#     sample_job_desc_relevant = """
-#     Seeking a Senior Software Engineer skilled in Python and web development.
-#     """
-#     sample_job_desc_irrelevant = """
-#     Looking for a Marketing Specialist with experience in SEO and content creation.
-#     """
-
-#     print(f"Is relevant (Software Engineer): {is_relevant_groq(sample_job_desc_relevant, sample_resume)}")
-#     print(f"Is relevant (Marketing Specialist): {is_relevant_groq(sample_job_desc_irrelevant, sample_resume)}")

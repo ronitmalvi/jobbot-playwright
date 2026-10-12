@@ -1,19 +1,18 @@
 import time
-from playwright.sync_api import Page
 
-def get_job_cards(page: Page):
+def get_job_cards(session):
     # Wait until job list is present
-    page.wait_for_selector("main ul", timeout=10000)
+    session.wait_for_selector("main ul", timeout=10000)
 
     # Select all job cards (li elements inside the ul)
-    job_elements = page.query_selector_all("main ul")
+    job_elements = session.query_selector_all("main ul li")
 
-    # Remove duplicates by their inner_text or href (if available)
+    # Remove duplicates by their inner_text
     unique_jobs = []
     seen = set()
     for job in job_elements:
-        identifier = job.inner_text().strip()
-        if identifier not in seen:
+        identifier = session.get_text(job).strip()
+        if identifier not in seen and identifier:
             seen.add(identifier)
             unique_jobs.append(job)
 

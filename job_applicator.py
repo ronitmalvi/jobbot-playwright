@@ -35,99 +35,65 @@ Constraints:
     )
     return response.choices[0].message.content.strip()
 
-# Example usage (assuming you have a resume string and a label)
-# resume_text = "..."
-# field_label = "Name"
-# answer = ask_groq(field_label, resume_text)
-# print(answer)
 
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# def ask_openai(label, resume):
-#     prompt = f"""
-# Given the following resume:
-# ---
-# {resume}
-# ---
-
-# Please provide the appropriate value for the input field described as: "{label}".
-
-# Constraints:
-# - Respond ONLY with the requested value. Do NOT include any introductory or concluding sentences.
-# - The answer must match the expected data type for the field as described in the rules below.
-# - Prioritize information directly from the resume. If the information is not available and cannot be logically inferred, respond with "N/A".
-# - For date fields, use YYYY-MM-DD format.
-# - For phone numbers, use the format: [number] (e.g., 9876543210).
-# - For email addresses, ensure it's a valid email format.
-# - For numeric fields, provide only the digits.
-# - For yes/no or boolean fields, respond with 'Yes' or 'No'.
-# - For fields asking for a list (e.g., skills), respond with a comma-separated list if applicable.
-# """
-#     response = client.chat.completions.create(
-#         model="gpt-4",
-#         messages=[{"role": "user", "content": prompt}],
-#         temperature=0.2
-#     )
-#     return response.choices[0].message.content.strip()
-
-
-def apply_to_current_job(page, resume_text: str):
+def apply_to_current_job(session, resume_text: str):
     try:
-        page.wait_for_selector(".jobs-apply-button", timeout=5000)
-        apply_button = page.query_selector(".jobs-apply-button")
-        if not apply_button or "Easy Apply" not in apply_button.inner_text():
+        session.wait_for_selector(".jobs-apply-button", timeout=5000)
+        apply_button = session.query_selector(".jobs-apply-button")
+        if not apply_button or "Easy Apply" not in session.get_text(apply_button):
             print("❌ Not an Easy Apply job")
             return False
 
         print("▶️ Clicking Easy Apply")
-        apply_button.click()
-        page.wait_for_selector(".jobs-easy-apply-modal", timeout=10000)
+        session.click_element(apply_button)
+        session.wait_for_selector(".jobs-easy-apply-modal", timeout=10000)
 
-        form = page.query_selector(".jobs-easy-apply-modal")
+        form = session.query_selector(".jobs-easy-apply-modal")
         if not form:
             print("❌ Easy Apply modal not found.")
             return False
 
         while True:
             # INPUT, TEXTAREA, SELECT
-            fields = form.query_selector_all("input:not([type='radio']):not([type='checkbox']), textarea, select")
+            fields = session.query_selector_all("input:not([type='radio']):not([type='checkbox']), textarea, select", parent=form)
 
             for field in fields:
                 try:
                     label_text = ""
-                    field_id = field.get_attribute("id")
+                    field_id = session.get_attribute(field, "id")
                     if field_id:
-                        label_el = form.query_selector(f"label[for='{field_id}']")
+                        label_el = session.query_selector(f"label[for='{field_id}']", parent=form)
                         if label_el:
-                            label_text = label_el.inner_text().strip()
+                            label_text = session.get_text(label_el).strip()
 
                     if not label_text:
-                        label_text = field.get_attribute("aria-label") or field.get_attribute("placeholder") or "Field"
+                        label_text = (session.get_attribute(field, "aria-label") or 
+                                    session.get_attribute(field, "placeholder") or "Field")
 
                     print(f"📝 Label detected: {label_text}")
                     value = ask_groq(label_text, resume_text)
                     print(f"🤖 {label_text}: {value}")
 
-                    tag_name = field.evaluate("node => node.tagName.toLowerCase()")
-                    if tag_name == "select":
+                    tag_name = session.get_tag_name(field)
+                    if tag_name.lower() == "select":
                         try:
-                            field.select_option(label=value)
+                            session.select_option(field, value)
                             print(f"📥 Selected '{value}' in native dropdown")
                         except:
                             print(f"⚠️ Native select failed for '{label_text}', trying custom dropdown")
                             try:
                                 # Custom LinkedIn dropdown workaround
-                                field.click()  # opens the dropdown
+                                session.click_element(field)  # opens the dropdown
                                 time.sleep(0.5)
 
                                 # Get all visible options (often rendered in a popup div elsewhere in the DOM)
-                                dropdown_options = page.query_selector_all("li[role='option'], div[role='option']")
+                                dropdown_options = session.query_selector_all("li[role='option'], div[role='option']")
 
                                 matched = False
                                 for opt in dropdown_options:
-                                    if value.lower() in opt.inner_text().strip().lower():
-                                        opt.click()
-                                        print(f"✅ Clicked custom dropdown option: {opt.inner_text().strip()}")
+                                    if value.lower() in session.get_text(opt).strip().lower():
+                                        session.click_element(opt)
+                                        print(f"✅ Clicked custom dropdown option: {session.get_text(opt).strip()}")
                                         matched = True
                                         break
 
@@ -136,50 +102,54 @@ def apply_to_current_job(page, resume_text: str):
                             except Exception as ex:
                                 print(f"❌ Error handling custom dropdown for {label_text}: {ex}")
                     else:
-                        field.fill(value)
+                        session.type_text(field, value, clear=True)
                         print(f"✍️ Filled '{value}'")
                     time.sleep(0.3)
                 except Exception as e:
                     print(f"⚠️ Could not fill/select {label_text}\n{e}")
 
             # RADIO BUTTONS
-            radios = form.query_selector_all("input[type='radio']")
+            radios = session.query_selector_all("input[type='radio']", parent=form)
             for radio in radios:
                 try:
-                    name = radio.get_attribute("name")
-                    label_el = radio.evaluate_handle("r => r.closest('label')")
-                    label_text = label_el.inner_text().strip() if label_el else name
+                    name = session.get_attribute(radio, "name")
+                    # Find the closest label for this radio button
+                    label_el = session.execute_script(f"""
+                        const radio = arguments[0];
+                        return radio.closest('label') || document.querySelector('label[for="' + radio.id + '"]');
+                    """, radio)
+                    label_text = session.get_text(label_el).strip() if label_el else name
                     if not label_text:
                         continue
                     answer = ask_groq(label_text, resume_text)
-                    matching_labels = form.query_selector_all("label")
+                    matching_labels = session.query_selector_all("label", parent=form)
                     for label in matching_labels:
-                        if answer.lower() in label.inner_text().lower():
-                            label.click()
-                            print(f"🔘 Selected radio: {label.inner_text().strip()}")
+                        if answer.lower() in session.get_text(label).lower():
+                            session.click_element(label)
+                            print(f"🔘 Selected radio: {session.get_text(label).strip()}")
                             time.sleep(0.3)
                             break
                 except Exception as e:
                     print(f"⚠️ Could not select radio button\n{e}")
 
             # BUTTON NAVIGATION
-            review_btn = form.query_selector("button[aria-label='Review your application']:not([disabled])")
-            next_btn = form.query_selector("button[aria-label='Continue to next step']:not([disabled])")
-            submit_btn = form.query_selector("button[aria-label='Submit application']:not([disabled])")
+            review_btn = session.query_selector("button[aria-label='Review your application']:not([disabled])", parent=form)
+            next_btn = session.query_selector("button[aria-label='Continue to next step']:not([disabled])", parent=form)
+            submit_btn = session.query_selector("button[aria-label='Submit application']:not([disabled])", parent=form)
 
             if review_btn:
                 print("🔍 Clicking Review")
-                review_btn.click()
-                page.wait_for_timeout(2000)
+                session.click_element(review_btn)
+                session.wait(2000)
                 continue
             elif next_btn:
                 print("➡️ Clicking Next")
-                next_btn.click()
-                page.wait_for_timeout(2000)
+                session.click_element(next_btn)
+                session.wait(2000)
                 continue
             elif submit_btn:
                 print("✅ Clicking Submit Application")
-                submit_btn.click()
+                session.click_element(submit_btn)
                 print("🎉 Application Submitted")
                 return True
 
